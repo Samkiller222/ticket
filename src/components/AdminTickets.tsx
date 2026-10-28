@@ -3,6 +3,7 @@ import { formatDate } from '../lib/format'
 import { supabase } from '../lib/supabase'
 import { formatTicketId, openTickets, STATUS_LABELS, STATUSES, type Status, type Ticket } from '../lib/tickets'
 import { ChevronIcon, InboxIcon, SearchIcon } from './Icons'
+import { Segmented } from './Segmented'
 import { Skeleton } from './Skeleton'
 
 type Filter = 'open' | 'resolved' | 'all'
@@ -25,13 +26,17 @@ export function AdminTickets({ tickets, loading, error, reload }: { tickets: Tic
         <span className="pill">{open.length} open</span>
       </div>
       <div className="toolbar">
-        <div className="segmented">
-          {(['open', 'resolved', 'all'] as Filter[]).map((f) => (
-            <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
-              {f[0].toUpperCase() + f.slice(1)}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          className="segmented"
+          label="Show tickets"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'open', label: 'Open' },
+            { value: 'resolved', label: 'Resolved' },
+            { value: 'all', label: 'All' },
+          ]}
+        />
         <label className="search">
           <SearchIcon size={16} />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tickets" aria-label="Search tickets" />
@@ -41,12 +46,12 @@ export function AdminTickets({ tickets, loading, error, reload }: { tickets: Tic
       {loading ? (
         <Skeleton rows={3} />
       ) : shown.length === 0 ? (
-        <div className="empty">
+        <div className="empty" key={`empty-${filter}`}>
           <InboxIcon size={28} />
           <p>{filter === 'open' && !q ? 'No open tickets. New tickets appear here as soon as someone submits one.' : 'No tickets match.'}</p>
         </div>
       ) : (
-        <ul className="ticket-list">
+        <ul className="ticket-list" key={filter}>
           {shown.map((t, i) => (
             <TicketRow key={t.id} ticket={t} reload={reload} index={i} />
           ))}

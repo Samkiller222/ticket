@@ -325,11 +325,16 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 
 .tabs, .segmented { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-sm); flex-wrap: wrap; }
 .tabs { align-self: flex-start; animation: rise 0.4s var(--ease) both; }
-.tabs button, .segmented button { font: inherit; font-size: 14px; font-weight: 500; border: 0; background: transparent; color: var(--ink-soft); padding: 7px 14px; border-radius: 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background-color 0.25s var(--ease), color 0.2s ease, box-shadow 0.25s ease; }
+.segmented-control { position: relative; isolation: isolate; }
+.tabs button, .segmented button { position: relative; z-index: 1; font: inherit; font-size: 14px; font-weight: 500; border: 0; background: transparent; color: var(--ink-soft); padding: 7px 14px; border-radius: 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: color 0.3s var(--ease); }
 .segmented { box-shadow: none; background: var(--subtle); }
 .tabs button:hover, .segmented button:hover { color: var(--ink); }
-.tabs button.active, .segmented button.active { background: var(--accent); color: #fff; box-shadow: 0 6px 16px -8px var(--accent); }
-.count { font-size: 12px; min-width: 22px; padding: 0 6px; border-radius: 99px; background: rgb(255 255 255 / 0.22); text-align: center; }
+.tabs button.active, .segmented button.active { color: #fff; }
+/* The single highlight that slides behind the active option (see Segmented.tsx). */
+.seg-indicator { position: absolute; top: 0; left: 0; z-index: 0; border-radius: 9px; background: var(--accent); box-shadow: 0 6px 16px -8px var(--accent); pointer-events: none; }
+.seg-indicator[data-ready] { transition: transform 0.4s var(--ease), width 0.4s var(--ease), height 0.4s var(--ease); }
+.segmented-control button:active { transform: scale(0.97); }
+.count { font-size: 12px; min-width: 22px; padding: 0 6px; border-radius: 99px; background: rgb(255 255 255 / 0.22); text-align: center; transition: background-color 0.3s var(--ease), color 0.3s var(--ease); }
 .tabs button:not(.active) .count { background: var(--accent-soft); color: var(--accent); }
 
 /* ---------- Reasons ---------- */

@@ -5,6 +5,7 @@ import { AdminTickets } from './components/AdminTickets'
 import { CheckStatus } from './components/CheckStatus'
 import { LogoIcon } from './components/Icons'
 import { MyTickets } from './components/MyTickets'
+import { Segmented } from './components/Segmented'
 import { SubmitTicket } from './components/SubmitTicket'
 import { ThemeToggle } from './components/ThemeToggle'
 import { useAdminSession, useAdminTickets, useReasons } from './hooks/useDesk'
@@ -57,14 +58,16 @@ export default function App() {
         {session && !isAdmin && <p className="notice">This account is not a help desk admin.</p>}
         {isAdmin ? (
           <div className="stack">
-            <nav className="tabs">
-              <button className={tab === 'tickets' ? 'active' : ''} onClick={() => setTab('tickets')}>
-                Open tickets <span className="count">{openTickets(adminTickets.tickets).length}</span>
-              </button>
-              <button className={tab === 'reasons' ? 'active' : ''} onClick={() => setTab('reasons')}>
-                Ticket reasons
-              </button>
-            </nav>
+            <Segmented
+              className="tabs"
+              label="Admin sections"
+              value={tab}
+              onChange={setTab}
+              options={[
+                { value: 'tickets', label: <>Open tickets <span className="count">{openTickets(adminTickets.tickets).length}</span></> },
+                { value: 'reasons', label: 'Ticket reasons' },
+              ]}
+            />
             {tab === 'tickets' && <AdminTickets {...adminTickets} />}
             {tab === 'reasons' && <AdminReasons reasons={reasons} reload={reloadReasons} />}
           </div>
