@@ -1,27 +1,24 @@
 import { useCallback, useEffect, useState } from 'react'
-import { browserKey, browserKeyHash } from '../lib/browserKey'
+import { browserKeys, sha256Hex } from '../lib/browserKey'
 import { onPing } from '../lib/live'
 import { supabase } from '../lib/supabase'
 import type { OwnTicket } from '../lib/tickets'
 
 function fetchMine() {
-  return supabase!.rpc('ticket_mine', { p_owner_key: browserKey() })
+  return supabase!.rpc('ticket_mine_many', { p_owner_keys: browserKeys() })
 }
 
-/** Tickets submitted from this browser. Updates live, and again whenever the tab comes back into view. */
+/** Tickets for every key this browser holds. Updates live, and again whenever the tab comes back into view. */
 export function useMyTickets() {
   const [tickets, setTickets] = useState<OwnTicket[]>([])
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
-  // False until the database has ticket_mine (migration 20261028140000).
-  const [available, setAvailable] = useState(true)
 
   const reload = useCallback(
     () =>
       fetchMine().then(({ data, error }) => {
         setLoaded(true)
-        setAvailable(error?.code !== 'PGRST202')
-        setError(error && error.code !== 'PGRST202' ? error.message : '')
+        setError(error?.message ?? '')
         if (data) setTickets(data as OwnTicket[])
       }),
     [],
@@ -34,17 +31,17 @@ export function useMyTickets() {
       if (document.visibilityState === 'visible') reload()
     }
     document.addEventListener('visibilitychange', onVisible)
-    let stop = () => {}
+    let stops: (() => void)[] = []
     let active = true
-    browserKeyHash().then((hash) => {
-      if (active) stop = onPing(`owner:${hash}`, reload)
+    Promise.all(browserKeys().map(sha256Hex)).then((hashes) => {
+      if (active) stops = hashes.map((hash) => onPing(`owner:${hash}`, reload))
     })
     return () => {
       active = false
-      stop()
+      stops.forEach((stop) => stop())
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [reload])
 
-  return { tickets, loaded, error, available, reload }
+  return { tickets, loaded, error, reload }
 }

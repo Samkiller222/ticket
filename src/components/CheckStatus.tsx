@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { onPing } from '../lib/live'
+import { Conversation } from './Conversation'
 import { SearchIcon } from './Icons'
 import { formatDate } from '../lib/format'
 import { supabase } from '../lib/supabase'
@@ -54,15 +55,7 @@ export function CheckStatus() {
           <p className="muted">
             Submitted {formatDate(result.created_at)} · last updated {formatDate(result.updated_at)}
           </p>
-          {result.notes.length > 0 && (
-            <ul className="notes">
-              {result.notes.map((n) => (
-                <li key={n.created_at}>
-                  <span className="muted">{formatDate(n.created_at)}</span> {n.body}
-                </li>
-              ))}
-            </ul>
-          )}
+          <Conversation notes={result.notes} viewer="submitter" />
         </div>
       )}
     </section>

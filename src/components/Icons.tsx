@@ -60,3 +60,45 @@ export function SuccessCheck() {
     </svg>
   )
 }
+export const ImageIcon = (p: P) => (
+  <Svg {...p}>
+    <rect x="3" y="3" width="18" height="18" rx="3" />
+    <circle cx="9" cy="9" r="2" />
+    <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21" />
+  </Svg>
+)
+export const XIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M18 6 6 18M6 6l12 12" />
+  </Svg>
+)
+export const PaperclipIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="m21.4 11.1-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5" />
+  </Svg>
+)
+export const DevicesIcon = (p: P) => (
+  <Svg {...p}>
+    <rect x="2" y="4" width="14" height="10" rx="2" />
+    <path d="M6 18h6" />
+    <rect x="17" y="8" width="5" height="12" rx="1.5" />
+  </Svg>
+)
+export const BellIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+    <path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" />
+  </Svg>
+)
+export const SoundIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M11 5 6 9H2v6h4l5 4z" />
+    <path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" />
+  </Svg>
+)
+export const MuteIcon = (p: P) => (
+  <Svg {...p}>
+    <path d="M11 5 6 9H2v6h4l5 4z" />
+    <path d="m22 9-6 6M16 9l6 6" />
+  </Svg>
+)

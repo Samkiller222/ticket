@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { onPing } from '../lib/live'
 import { supabase } from '../lib/supabase'
 import type { Reason, Ticket } from '../lib/tickets'
@@ -11,10 +11,13 @@ function fetchReasons() {
 function fetchTickets() {
   return supabase!
     .from('ticket_tickets')
-    .select('*, notes:ticket_notes(id, body, created_at)')
+    .select('*, notes:ticket_notes(id, body, created_at, from_submitter), attachments:ticket_attachments(id, name, path, size)')
     .order('created_at', { ascending: false })
     .order('created_at', { referencedTable: 'ticket_notes' })
 }
+
+/** What the admin is alerted about: a new ticket, or a reply from whoever raised one. */
+export type AdminEvent = { kind: 'ticket'; ticket: Ticket } | { kind: 'reply'; ticketId: number; body: string }
 
 /** Ticket reasons. Visitors get the active ones; admins also get hidden ones. */
 export function useReasons(session: Session | null) {
@@ -41,10 +44,15 @@ export function useReasons(session: Session | null) {
 }
 
 /** All tickets with their notes, refreshed live while an admin is signed in. */
-export function useAdminTickets(enabled: boolean) {
+export function useAdminTickets(enabled: boolean, onEvent?: (e: AdminEvent) => void) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // Latest callback without resubscribing the channel when it changes.
+  const eventRef = useRef(onEvent)
+  useEffect(() => {
+    eventRef.current = onEvent
+  })
 
   const reload = useCallback(
     () =>
@@ -62,8 +70,16 @@ export function useAdminTickets(enabled: boolean) {
     const client = supabase
     const channel = client
       .channel('ticket-desk-admin')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_tickets' }, () => reload())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_notes' }, () => reload())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_tickets' }, (payload) => {
+        if (payload.eventType === 'INSERT') eventRef.current?.({ kind: 'ticket', ticket: payload.new as Ticket })
+        reload()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_notes' }, (payload) => {
+        const note = payload.new as { ticket_id?: number; body?: string; from_submitter?: boolean }
+        if (payload.eventType === 'INSERT' && note.from_submitter) eventRef.current?.({ kind: 'reply', ticketId: note.ticket_id ?? 0, body: note.body ?? '' })
+        reload()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ticket_attachments' }, () => reload())
       .subscribe()
     return () => {
       client.removeChannel(channel)
@@ -71,6 +87,37 @@ export function useAdminTickets(enabled: boolean) {
   }, [enabled, reload])
 
   return { tickets, loading, error, reload }
+}
+
+export interface SavedReply {
+  id: string
+  title: string
+  body: string
+}
+
+/** The admin's saved replies. */
+export function useSavedReplies(enabled: boolean) {
+  const [replies, setReplies] = useState<SavedReply[]>([])
+  const [error, setError] = useState('')
+
+  const reload = useCallback(
+    () =>
+      supabase!
+        .from('ticket_saved_replies')
+        .select('id, title, body')
+        .order('title')
+        .then(({ data, error }) => {
+          setError(error?.message ?? '')
+          if (data) setReplies(data)
+        }),
+    [],
+  )
+
+  useEffect(() => {
+    if (enabled && supabase) reload()
+  }, [enabled, reload])
+
+  return { replies, error, reload }
 }
 
 /** The signed-in session (if any) and whether that user is a ticket admin. */
