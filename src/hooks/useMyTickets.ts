@@ -12,12 +12,15 @@ export function useMyTickets() {
   const [tickets, setTickets] = useState<OwnTicket[]>([])
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
+  // False until the database has ticket_mine (migration 20261028140000).
+  const [available, setAvailable] = useState(true)
 
   const reload = useCallback(
     () =>
       fetchMine().then(({ data, error }) => {
         setLoaded(true)
-        setError(error?.message ?? '')
+        setAvailable(error?.code !== 'PGRST202')
+        setError(error && error.code !== 'PGRST202' ? error.message : '')
         if (data) setTickets(data as OwnTicket[])
       }),
     [],
@@ -37,5 +40,5 @@ export function useMyTickets() {
     }
   }, [reload])
 
-  return { tickets, loaded, error, reload }
+  return { tickets, loaded, error, available, reload }
 }

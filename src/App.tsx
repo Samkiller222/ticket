@@ -59,7 +59,7 @@ export default function App() {
           <>
             {reasonsError && <p className="panel field-error">Could not load ticket reasons: {reasonsError}</p>}
             <SubmitTicket reasons={reasons} onSubmitted={mine.reload} />
-            <MyTickets {...mine} />
+            {mine.available && <MyTickets {...mine} />}
             <CheckStatus />
           </>
         )}

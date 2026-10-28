@@ -25,14 +25,16 @@ export function SubmitTicket({ reasons, onSubmitted }: { reasons: Reason[]; onSu
     }
     setSaving(true)
     setServerError('')
-    const { data, error } = await supabase!.rpc('ticket_submit', {
+    const args = {
       p_name: form.name,
       p_email: form.email,
       p_reason_id: form.reasonId,
       p_priority: form.priority,
       p_description: form.description,
-      p_owner_key: browserKey(),
-    })
+    }
+    let { data, error } = await supabase!.rpc('ticket_submit', { ...args, p_owner_key: browserKey() })
+    // PGRST202: the database predates browser keys (migration 20261028140000 not applied yet).
+    if (error?.code === 'PGRST202') ({ data, error } = await supabase!.rpc('ticket_submit', args))
     setSaving(false)
     if (error) {
       setServerError(error.message)
