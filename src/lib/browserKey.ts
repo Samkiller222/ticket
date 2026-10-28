@@ -18,3 +18,13 @@ export function browserKey(): string {
 }
 
 const sessionKey = crypto.randomUUID()
+
+/** SHA-256 of the key, matching ticket_key_hash() in the database. Used as this browser's live-update topic. */
+export function browserKeyHash(): Promise<string> {
+  return sha256Hex(browserKey())
+}
+
+export async function sha256Hex(text: string): Promise<string> {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}

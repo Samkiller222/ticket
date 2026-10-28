@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { onPing } from '../lib/live'
 import { formatDate } from '../lib/format'
 import { supabase } from '../lib/supabase'
 import { formatTicketId, parseTicketId, STATUS_LABELS, type PublicTicket } from '../lib/tickets'
@@ -8,17 +9,22 @@ export function CheckStatus() {
   const [result, setResult] = useState<PublicTicket | null | undefined>(undefined)
   const [error, setError] = useState('')
 
-  async function search(e: FormEvent) {
-    e.preventDefault()
-    const id = parseTicketId(query)
-    if (id === null) {
-      setResult(null)
-      return
-    }
+  const lookup = useCallback(async (id: number) => {
     const { data, error } = await supabase!.rpc('ticket_lookup', { p_id: id })
     setError(error?.message ?? '')
     setResult((data as PublicTicket | null) ?? null)
+  }, [])
+
+  async function search(e: FormEvent) {
+    e.preventDefault()
+    const id = parseTicketId(query)
+    if (id === null) setResult(null)
+    else await lookup(id)
   }
+
+  // Keep the shown ticket live: status changes and new notes appear without searching again.
+  const shownId = result?.id
+  useEffect(() => (shownId === undefined ? undefined : onPing(`ticket:${shownId}`, () => lookup(shownId))), [shownId, lookup])
 
   return (
     <section className="panel">

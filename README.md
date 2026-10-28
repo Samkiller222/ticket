@@ -11,6 +11,7 @@ A small ticketing system for generic IT problems. React 19 + TypeScript + Vite, 
 Supabase project `dhpxlmksyctpafcfdpit` (shared with other apps, so everything is prefixed `ticket_`). Schema, access rules and starter reasons are in `supabase/migrations/`.
 
 - Visitors never read the tickets table directly. They submit through `ticket_submit()` and look up through `ticket_lookup()`, which returns status, reason and notes but not names, emails or descriptions. Notes are visible to anyone with the ticket number.
+- Everything updates live. Admins get Realtime changes on the ticket tables (RLS applies). Visitors can't read those tables, so triggers broadcast a data-free "changed" ping on public topics (a browser's key hash, a ticket number, the reasons list) and the page reloads through the functions above.
 - Admins are the users listed in `ticket_admins`. Admin names map to an internal email: `Sam` signs in as `sam@ticket-desk.invalid`. A full email address also works.
 - To add an admin, create the user in Supabase (Authentication > Users > Add user, email `name@ticket-desk.invalid`, tick auto-confirm), then run
   `insert into ticket_admins (user_id) select id from auth.users where email = 'name@ticket-desk.invalid';`

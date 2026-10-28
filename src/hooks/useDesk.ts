@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js'
 import { useCallback, useEffect, useState } from 'react'
+import { onPing } from '../lib/live'
 import { supabase } from '../lib/supabase'
 import type { Reason, Ticket } from '../lib/tickets'
 
@@ -33,6 +34,8 @@ export function useReasons(session: Session | null) {
   useEffect(() => {
     if (supabase) reload()
   }, [reload, session])
+
+  useEffect(() => onPing('reasons', reload), [reload])
 
   return { reasons, error, reload }
 }

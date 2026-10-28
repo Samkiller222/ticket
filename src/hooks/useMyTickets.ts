@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { browserKey } from '../lib/browserKey'
+import { browserKey, browserKeyHash } from '../lib/browserKey'
+import { onPing } from '../lib/live'
 import { supabase } from '../lib/supabase'
 import type { OwnTicket } from '../lib/tickets'
 
@@ -7,7 +8,7 @@ function fetchMine() {
   return supabase!.rpc('ticket_mine', { p_owner_key: browserKey() })
 }
 
-/** Tickets submitted from this browser. Refreshes when the tab comes back into view and every minute. */
+/** Tickets submitted from this browser. Updates live, and again whenever the tab comes back into view. */
 export function useMyTickets() {
   const [tickets, setTickets] = useState<OwnTicket[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -33,10 +34,15 @@ export function useMyTickets() {
       if (document.visibilityState === 'visible') reload()
     }
     document.addEventListener('visibilitychange', onVisible)
-    const timer = setInterval(onVisible, 60_000)
+    let stop = () => {}
+    let active = true
+    browserKeyHash().then((hash) => {
+      if (active) stop = onPing(`owner:${hash}`, reload)
+    })
     return () => {
+      active = false
+      stop()
       document.removeEventListener('visibilitychange', onVisible)
-      clearInterval(timer)
     }
   }, [reload])
 
