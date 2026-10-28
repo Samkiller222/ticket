@@ -1,83 +1,75 @@
 import { describe, expect, it } from 'vitest'
-import { addNote, addReason, addTicket, deleteReason, findTicket, openTickets, seedDesk, setStatus, toggleReason, validateTicket, type NewTicket } from './tickets'
+import { formatTicketId, groupByCategory, openTickets, parseTicketId, reasonError, validateTicket, type NewTicket, type Reason, type Ticket } from './tickets'
+
+const reasons: Reason[] = [
+  { id: 'r1', category: 'Hardware', label: 'Computer is running slowly', active: true },
+  { id: 'r2', category: 'Hardware', label: 'Monitor not displaying', active: false },
+  { id: 'r3', category: 'Network', label: 'VPN will not connect', active: true },
+]
 
 const input = (over: Partial<NewTicket> = {}): NewTicket => ({
   name: 'Sam',
   email: '',
-  reasonId: 'hardware-computer-is-running-slowly',
+  reasonId: 'r1',
   priority: 'normal',
   description: 'Takes ten minutes to boot since Monday.',
   ...over,
 })
 
 describe('validateTicket', () => {
+  it('accepts a complete ticket', () => {
+    expect(validateTicket(reasons, input())).toEqual({})
+  })
+
   it('requires a name and a description', () => {
-    const errors = validateTicket(seedDesk(), input({ name: '  ', description: '' }))
+    const errors = validateTicket(reasons, input({ name: '  ', description: '' }))
     expect(errors.name).toBeDefined()
     expect(errors.description).toBeDefined()
   })
 
   it('rejects a description that is too short', () => {
-    expect(validateTicket(seedDesk(), input({ description: 'broken' })).description).toBeDefined()
+    expect(validateTicket(reasons, input({ description: 'broken' })).description).toBeDefined()
   })
 
   it('allows a blank email but not a malformed one', () => {
-    expect(validateTicket(seedDesk(), input()).email).toBeUndefined()
-    expect(validateTicket(seedDesk(), input({ email: 'nope' })).email).toBeDefined()
+    expect(validateTicket(reasons, input({ email: 'nope' })).email).toBeDefined()
   })
 
-  it('rejects hidden reasons', () => {
-    const desk = toggleReason(seedDesk(), 'hardware-computer-is-running-slowly')
-    expect(validateTicket(desk, input()).reasonId).toBeDefined()
+  it('rejects hidden or missing reasons', () => {
+    expect(validateTicket(reasons, input({ reasonId: 'r2' })).reasonId).toBeDefined()
+    expect(validateTicket(reasons, input({ reasonId: '' })).reasonId).toBeDefined()
   })
 })
 
-describe('tickets', () => {
-  it('numbers tickets and copies the reason label', () => {
-    const first = addTicket(seedDesk(), input())
-    const second = addTicket(first.desk, input())
-    expect(first.ticket.id).toBe('TCK-1001')
-    expect(second.ticket.id).toBe('TCK-1002')
-    expect(first.ticket.reasonLabel).toBe('Computer is running slowly')
-    expect(first.ticket.status).toBe('open')
+describe('ticket ids', () => {
+  it('formats and parses', () => {
+    expect(formatTicketId(1001)).toBe('TCK-1001')
+    expect(parseTicketId('TCK-1001')).toBe(1001)
+    expect(parseTicketId(' tck 1002 ')).toBe(1002)
+    expect(parseTicketId('1003')).toBe(1003)
+    expect(parseTicketId('abc')).toBeNull()
+  })
+})
+
+describe('openTickets', () => {
+  const t = (id: number, priority: Ticket['priority'], status: Ticket['status'], created_at: string): Ticket => ({
+    id, priority, status, created_at, updated_at: created_at, name: 'x', email: null, reason_id: null, reason_label: 'x', category: 'x', description: 'x', notes: [],
   })
 
-  it('refuses to add an invalid ticket', () => {
-    expect(() => addTicket(seedDesk(), input({ name: '' }))).toThrow()
-  })
-
-  it('keeps the label after the reason is deleted', () => {
-    const { desk, ticket } = addTicket(seedDesk(), input())
-    const after = deleteReason(desk, ticket.reasonId)
-    expect(findTicket(after, 'tck-1001')?.reasonLabel).toBe('Computer is running slowly')
-  })
-
-  it('finds by bare number', () => {
-    const { desk } = addTicket(seedDesk(), input())
-    expect(findTicket(desk, '1001')?.id).toBe('TCK-1001')
-  })
-
-  it('lists open tickets by priority then age, without resolved ones', () => {
-    let desk = seedDesk()
-    desk = addTicket(desk, input({ priority: 'low' }), new Date('2026-01-01')).desk
-    desk = addTicket(desk, input({ priority: 'urgent' }), new Date('2026-01-02')).desk
-    desk = addTicket(desk, input({ priority: 'urgent' }), new Date('2026-01-03')).desk
-    desk = setStatus(desk, 'TCK-1003', 'resolved')
-    expect(openTickets(desk.tickets).map((t) => t.id)).toEqual(['TCK-1002', 'TCK-1001'])
-  })
-
-  it('adds notes and ignores blank ones', () => {
-    const { desk } = addTicket(seedDesk(), input())
-    const noted = addNote(addNote(desk, 'TCK-1001', 'On it'), 'TCK-1001', '  ')
-    expect(findTicket(noted, 'TCK-1001')?.notes.map((n) => n.text)).toEqual(['On it'])
+  it('sorts by priority then age and drops resolved tickets', () => {
+    const list = [t(1, 'low', 'open', '2026-01-01'), t(2, 'urgent', 'in_progress', '2026-01-02'), t(3, 'urgent', 'open', '2026-01-03'), t(4, 'urgent', 'resolved', '2026-01-01')]
+    expect(openTickets(list).map((x) => x.id)).toEqual([2, 3, 1])
   })
 })
 
 describe('reasons', () => {
-  it('adds a reason and blocks duplicates', () => {
-    const desk = addReason(seedDesk(), 'Hardware', 'Docking station not working')
-    expect(desk.reasons.at(-1)).toMatchObject({ category: 'Hardware', label: 'Docking station not working', active: true })
-    expect(() => addReason(desk, 'hardware', 'docking station not working')).toThrow()
-    expect(() => addReason(desk, '', 'x')).toThrow()
+  it('groups by category', () => {
+    expect(groupByCategory(reasons).map(([c, rs]) => [c, rs.length])).toEqual([['Hardware', 2], ['Network', 1]])
+  })
+
+  it('blocks blanks and case-insensitive duplicates', () => {
+    expect(reasonError(reasons, 'hardware', 'monitor NOT displaying')).not.toBe('')
+    expect(reasonError(reasons, '', 'x')).not.toBe('')
+    expect(reasonError(reasons, 'Hardware', 'Docking station not working')).toBe('')
   })
 })

@@ -1,18 +1,24 @@
 import { useState, type FormEvent } from 'react'
-import { findTicket, STATUS_LABELS, type Desk, type Ticket } from '../lib/tickets'
 import { formatDate } from '../lib/format'
+import { supabase } from '../lib/supabase'
+import { formatTicketId, parseTicketId, STATUS_LABELS, type PublicTicket } from '../lib/tickets'
 
-export function CheckStatus({ desk }: { desk: Desk }) {
+export function CheckStatus() {
   const [query, setQuery] = useState('')
-  const [result, setResult] = useState<Ticket | null | undefined>(undefined)
+  const [result, setResult] = useState<PublicTicket | null | undefined>(undefined)
+  const [error, setError] = useState('')
 
-  function search(e: FormEvent) {
+  async function search(e: FormEvent) {
     e.preventDefault()
-    setResult(findTicket(desk, query) ?? null)
+    const id = parseTicketId(query)
+    if (id === null) {
+      setResult(null)
+      return
+    }
+    const { data, error } = await supabase!.rpc('ticket_lookup', { p_id: id })
+    setError(error?.message ?? '')
+    setResult((data as PublicTicket | null) ?? null)
   }
-
-  // Re-read from the desk so status changes made by an admin show up straight away.
-  const live = result ? findTicket(desk, result.id) : result
 
   return (
     <section className="panel">
@@ -23,22 +29,25 @@ export function CheckStatus({ desk }: { desk: Desk }) {
           Look up
         </button>
       </form>
-      {live === null && <p className="muted">No ticket with that number.</p>}
-      {live && (
+      {error && <p className="field-error">{error}</p>}
+      {result === null && !error && <p className="muted">No ticket with that number.</p>}
+      {result && (
         <div className="status-card">
           <div className="row-between">
-            <span className="ticket-id">{live.id}</span>
-            <span className={`badge status-${live.status}`}>{STATUS_LABELS[live.status]}</span>
+            <span className="ticket-id">{formatTicketId(result.id)}</span>
+            <span className={`badge status-${result.status}`}>{STATUS_LABELS[result.status]}</span>
           </div>
           <p>
-            {live.category} · {live.reasonLabel}
+            {result.category} · {result.reason_label}
           </p>
-          <p className="muted">Submitted {formatDate(live.createdAt)} · last updated {formatDate(live.updatedAt)}</p>
-          {live.notes.length > 0 && (
+          <p className="muted">
+            Submitted {formatDate(result.created_at)} · last updated {formatDate(result.updated_at)}
+          </p>
+          {result.notes.length > 0 && (
             <ul className="notes">
-              {live.notes.map((n) => (
-                <li key={n.at}>
-                  <span className="muted">{formatDate(n.at)}</span> {n.text}
+              {result.notes.map((n) => (
+                <li key={n.created_at}>
+                  <span className="muted">{formatDate(n.created_at)}</span> {n.body}
                 </li>
               ))}
             </ul>

@@ -1,27 +1,42 @@
 import { useState, type FormEvent } from 'react'
-import { addTicket, groupByCategory, PRIORITIES, validateTicket, type Desk, type NewTicket, type Ticket } from '../lib/tickets'
+import { supabase } from '../lib/supabase'
+import { formatTicketId, groupByCategory, PRIORITIES, validateTicket, type NewTicket, type Reason } from '../lib/tickets'
 
 const EMPTY: NewTicket = { name: '', email: '', reasonId: '', priority: 'normal', description: '' }
 
-export function SubmitTicket({ desk, onSave }: { desk: Desk; onSave: (next: Desk) => void }) {
+export function SubmitTicket({ reasons }: { reasons: Reason[] }) {
   const [form, setForm] = useState<NewTicket>(EMPTY)
   const [showErrors, setShowErrors] = useState(false)
-  const [created, setCreated] = useState<Ticket | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [serverError, setServerError] = useState('')
+  const [created, setCreated] = useState<{ id: number; reason: string } | null>(null)
 
-  const errors = validateTicket(desk, form)
+  const errors = validateTicket(reasons, form)
   const visible = showErrors ? errors : {}
-  const groups = groupByCategory(desk.reasons.filter((r) => r.active))
+  const groups = groupByCategory(reasons.filter((r) => r.active))
   const set = <K extends keyof NewTicket>(key: K, value: NewTicket[K]) => setForm((f) => ({ ...f, [key]: value }))
 
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault()
     if (Object.keys(errors).length) {
       setShowErrors(true)
       return
     }
-    const result = addTicket(desk, form)
-    onSave(result.desk)
-    setCreated(result.ticket)
+    setSaving(true)
+    setServerError('')
+    const { data, error } = await supabase!.rpc('ticket_submit', {
+      p_name: form.name,
+      p_email: form.email,
+      p_reason_id: form.reasonId,
+      p_priority: form.priority,
+      p_description: form.description,
+    })
+    setSaving(false)
+    if (error) {
+      setServerError(error.message)
+      return
+    }
+    setCreated({ id: data as number, reason: reasons.find((r) => r.id === form.reasonId)?.label ?? '' })
     setForm(EMPTY)
     setShowErrors(false)
   }
@@ -31,11 +46,9 @@ export function SubmitTicket({ desk, onSave }: { desk: Desk; onSave: (next: Desk
       <section className="panel">
         <h2>Ticket submitted</h2>
         <p>
-          Your ticket number is <span className="ticket-id">{created.id}</span>. Keep it to check the status later.
+          Your ticket number is <span className="ticket-id">{formatTicketId(created.id)}</span>. Keep it to check the status later.
         </p>
-        <p className="muted">
-          {created.category} · {created.reasonLabel} · {created.priority} priority
-        </p>
+        <p className="muted">{created.reason}</p>
         <button className="btn" onClick={() => setCreated(null)}>
           Submit another ticket
         </button>
@@ -48,19 +61,19 @@ export function SubmitTicket({ desk, onSave }: { desk: Desk; onSave: (next: Desk
       <h2>Report a problem</h2>
       <div className="grid-2">
         <Field label="Your name" required error={visible.name}>
-          <input value={form.name} onChange={(e) => set('name', e.target.value)} autoComplete="name" />
+          <input value={form.name} onChange={(e) => set('name', e.target.value)} autoComplete="name" maxLength={100} />
         </Field>
         <Field label="Email (optional)" error={visible.email}>
-          <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} autoComplete="email" />
+          <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} autoComplete="email" maxLength={200} />
         </Field>
       </div>
       <div className="grid-2">
         <Field label="What is the problem?" required error={visible.reasonId}>
           <select value={form.reasonId} onChange={(e) => set('reasonId', e.target.value)}>
             <option value="">Choose a reason…</option>
-            {groups.map(([category, reasons]) => (
+            {groups.map(([category, rs]) => (
               <optgroup key={category} label={category}>
-                {reasons.map((r) => (
+                {rs.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.label}
                   </option>
@@ -82,13 +95,15 @@ export function SubmitTicket({ desk, onSave }: { desk: Desk; onSave: (next: Desk
       <Field label="Description" required error={visible.description}>
         <textarea
           rows={5}
+          maxLength={5000}
           value={form.description}
           onChange={(e) => set('description', e.target.value)}
           placeholder="What happened, when it started, and anything you have already tried."
         />
       </Field>
-      <button className="btn primary" type="submit">
-        Submit ticket
+      {serverError && <p className="field-error">{serverError}</p>}
+      <button className="btn primary" type="submit" disabled={saving}>
+        {saving ? 'Submitting…' : 'Submit ticket'}
       </button>
     </form>
   )
