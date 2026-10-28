@@ -3,8 +3,10 @@ import { AdminLogin } from './components/AdminLogin'
 import { AdminReasons } from './components/AdminReasons'
 import { AdminTickets } from './components/AdminTickets'
 import { CheckStatus } from './components/CheckStatus'
+import { MyTickets } from './components/MyTickets'
 import { SubmitTicket } from './components/SubmitTicket'
 import { useAdminSession, useAdminTickets, useReasons } from './hooks/useDesk'
+import { useMyTickets } from './hooks/useMyTickets'
 import { supabase } from './lib/supabase'
 import { openTickets } from './lib/tickets'
 
@@ -14,6 +16,7 @@ export default function App() {
   const { session, isAdmin } = useAdminSession()
   const { reasons, error: reasonsError, reload: reloadReasons } = useReasons(session)
   const adminTickets = useAdminTickets(isAdmin)
+  const mine = useMyTickets()
   const [askLogin, setAskLogin] = useState(false)
   const [tab, setTab] = useState<AdminTab>('tickets')
 
@@ -55,7 +58,8 @@ export default function App() {
         ) : (
           <>
             {reasonsError && <p className="panel field-error">Could not load ticket reasons: {reasonsError}</p>}
-            <SubmitTicket reasons={reasons} />
+            <SubmitTicket reasons={reasons} onSubmitted={mine.reload} />
+            <MyTickets {...mine} />
             <CheckStatus />
           </>
         )}

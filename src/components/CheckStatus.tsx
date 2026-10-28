@@ -22,7 +22,8 @@ export function CheckStatus() {
 
   return (
     <section className="panel">
-      <h2>Check a ticket</h2>
+      <h2>Look up a ticket by number</h2>
+      <p className="muted">For tickets sent from another device or browser.</p>
       <form className="inline-form" onSubmit={search}>
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ticket number, e.g. TCK-1001" />
         <button className="btn" type="submit">

@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react'
+import { browserKey } from '../lib/browserKey'
 import { supabase } from '../lib/supabase'
 import { formatTicketId, groupByCategory, PRIORITIES, validateTicket, type NewTicket, type Reason } from '../lib/tickets'
 
 const EMPTY: NewTicket = { name: '', email: '', reasonId: '', priority: 'normal', description: '' }
 
-export function SubmitTicket({ reasons }: { reasons: Reason[] }) {
+export function SubmitTicket({ reasons, onSubmitted }: { reasons: Reason[]; onSubmitted: () => void }) {
   const [form, setForm] = useState<NewTicket>(EMPTY)
   const [showErrors, setShowErrors] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -30,6 +31,7 @@ export function SubmitTicket({ reasons }: { reasons: Reason[] }) {
       p_reason_id: form.reasonId,
       p_priority: form.priority,
       p_description: form.description,
+      p_owner_key: browserKey(),
     })
     setSaving(false)
     if (error) {
@@ -39,6 +41,7 @@ export function SubmitTicket({ reasons }: { reasons: Reason[] }) {
     setCreated({ id: data as number, reason: reasons.find((r) => r.id === form.reasonId)?.label ?? '' })
     setForm(EMPTY)
     setShowErrors(false)
+    onSubmitted()
   }
 
   if (created) {
@@ -46,7 +49,7 @@ export function SubmitTicket({ reasons }: { reasons: Reason[] }) {
       <section className="panel">
         <h2>Ticket submitted</h2>
         <p>
-          Your ticket number is <span className="ticket-id">{formatTicketId(created.id)}</span>. Keep it to check the status later.
+          Your ticket number is <span className="ticket-id">{formatTicketId(created.id)}</span>. It is listed under Your tickets in this browser.
         </p>
         <p className="muted">{created.reason}</p>
         <button className="btn" onClick={() => setCreated(null)}>

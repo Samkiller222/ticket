@@ -33,6 +33,9 @@ export interface Ticket {
 /** What anyone can see through ticket_lookup: no name, email or description. */
 export type PublicTicket = Pick<Ticket, 'id' | 'status' | 'priority' | 'reason_label' | 'category' | 'created_at' | 'updated_at' | 'notes'>
 
+/** What ticket_mine returns: the visitor's own tickets, details included. */
+export type OwnTicket = Omit<Ticket, 'reason_id'>
+
 export interface NewTicket {
   name: string
   email: string
