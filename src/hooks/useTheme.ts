@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { flushSync } from 'react-dom'
 
 export type Theme = 'light' | 'dark'
 const KEY = 'ticket-desk:theme'
@@ -12,18 +13,21 @@ function initialTheme(): Theme {
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(initialTheme)
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
-
   function toggle() {
-    const next = theme === 'dark' ? 'light' : 'dark'
+    const next: Theme = theme === 'dark' ? 'light' : 'dark'
     try {
       localStorage.setItem(KEY, next)
     } catch {
       // Not saved; the choice still applies for this visit.
     }
-    setTheme(next)
+    const apply = () => {
+      document.documentElement.dataset.theme = next
+      flushSync(() => setTheme(next))
+    }
+    // Crossfade the whole page between themes where the browser supports view transitions.
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+    if ('startViewTransition' in document && !reduceMotion) document.startViewTransition(apply)
+    else apply()
   }
 
   return { theme, toggle }

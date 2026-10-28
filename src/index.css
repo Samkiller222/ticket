@@ -217,20 +217,46 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 .link-btn:hover::after { transform: scaleX(1); }
 .link-btn.danger { color: var(--error); }
 
-.icon-btn {
+.theme-switch {
+  position: relative;
+  flex: none;
+  width: 62px;
+  height: 34px;
+  padding: 0;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--subtle);
+  cursor: pointer;
+  /* Kept out of the page crossfade so the knob is seen sliding (see view-transition rules below). */
+  view-transition-name: theme-switch;
+  transition: background-color 0.4s var(--ease), border-color 0.4s var(--ease), box-shadow 0.2s ease;
+}
+.theme-switch:hover { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.theme-switch.on { background: #1d2540; border-color: #2f3a5c; }
+.theme-switch-track { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 9px; color: var(--ink-faint); }
+.theme-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
   border-radius: 50%;
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink-soft);
-  cursor: pointer;
-  transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ease), background-color 0.3s ease;
+  background: #fff;
+  color: #e8a10c;
+  box-shadow: 0 2px 6px rgb(20 26 42 / 0.25);
+  transition: transform 0.45s cubic-bezier(0.34, 1.4, 0.64, 1), background-color 0.4s ease, color 0.4s ease;
 }
-.icon-btn:hover { color: var(--accent); border-color: var(--accent); transform: rotate(-12deg); }
+.theme-switch.on .theme-switch-knob { transform: translateX(28px); background: #8a9dff; color: #0c111c; }
+.theme-switch:active .theme-switch-knob { width: 30px; }
+.theme-switch.on:active .theme-switch-knob { transform: translateX(24px); }
 .theme-icon { display: grid; animation: spin-in 0.45s var(--ease) both; }
+
+/* Theme change: the page crossfades; the switch itself stays live so its knob slide shows. */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.45s; animation-timing-function: ease; }
+::view-transition-old(theme-switch) { display: none; }
+::view-transition-new(theme-switch) { animation: none; }
 
 .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgb(255 255 255 / 0.4); border-top-color: #fff; animation: spin 0.7s linear infinite; }
 
