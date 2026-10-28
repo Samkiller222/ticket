@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { onPing } from '../lib/live'
+import { SearchIcon } from './Icons'
 import { formatDate } from '../lib/format'
 import { supabase } from '../lib/supabase'
 import { formatTicketId, parseTicketId, STATUS_LABELS, type PublicTicket } from '../lib/tickets'
@@ -31,18 +32,21 @@ export function CheckStatus() {
       <h2>Look up a ticket by number</h2>
       <p className="muted">For tickets sent from another device or browser.</p>
       <form className="inline-form" onSubmit={search}>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ticket number, e.g. TCK-1001" />
-        <button className="btn" type="submit">
+        <label className="search">
+          <SearchIcon size={16} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ticket number, e.g. TCK-1001" aria-label="Ticket number" />
+        </label>
+        <button className="btn secondary" type="submit">
           Look up
         </button>
       </form>
       {error && <p className="field-error">{error}</p>}
       {result === null && !error && <p className="muted">No ticket with that number.</p>}
       {result && (
-        <div className="status-card">
+        <div className="status-card" key={result.id}>
           <div className="row-between">
             <span className="ticket-id">{formatTicketId(result.id)}</span>
-            <span className={`badge status-${result.status}`}>{STATUS_LABELS[result.status]}</span>
+            <span key={result.status} className={`badge status status-${result.status}`}>{STATUS_LABELS[result.status]}</span>
           </div>
           <p>
             {result.category} · {result.reason_label}

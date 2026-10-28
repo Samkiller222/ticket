@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { browserKey } from '../lib/browserKey'
+import { SendIcon, SuccessCheck } from './Icons'
 import { supabase } from '../lib/supabase'
 import { formatTicketId, groupByCategory, PRIORITIES, validateTicket, type NewTicket, type Reason } from '../lib/tickets'
 
@@ -48,13 +49,14 @@ export function SubmitTicket({ reasons, onSubmitted }: { reasons: Reason[]; onSu
 
   if (created) {
     return (
-      <section className="panel">
+      <section className="panel success">
+        <SuccessCheck />
         <h2>Ticket submitted</h2>
         <p>
           Your ticket number is <span className="ticket-id">{formatTicketId(created.id)}</span>. It is listed under Your tickets in this browser.
         </p>
         <p className="muted">{created.reason}</p>
-        <button className="btn" onClick={() => setCreated(null)}>
+        <button className="btn secondary" onClick={() => setCreated(null)}>
           Submit another ticket
         </button>
       </section>
@@ -63,7 +65,10 @@ export function SubmitTicket({ reasons, onSubmitted }: { reasons: Reason[]; onSu
 
   return (
     <form className="panel" onSubmit={submit} noValidate>
-      <h2>Report a problem</h2>
+      <div className="panel-head">
+        <h2>Report a problem</h2>
+        <p className="muted">Fields marked * are required.</p>
+      </div>
       <div className="grid-2">
         <Field label="Your name" required error={visible.name}>
           <input value={form.name} onChange={(e) => set('name', e.target.value)} autoComplete="name" maxLength={100} />
@@ -107,7 +112,8 @@ export function SubmitTicket({ reasons, onSubmitted }: { reasons: Reason[]; onSu
         />
       </Field>
       {serverError && <p className="field-error">{serverError}</p>}
-      <button className="btn primary" type="submit" disabled={saving}>
+      <button className="btn primary block" type="submit" disabled={saving}>
+        {saving ? <span className="spinner" aria-hidden="true" /> : <SendIcon size={16} />}
         {saving ? 'Submitting…' : 'Submit ticket'}
       </button>
     </form>

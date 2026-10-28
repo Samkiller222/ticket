@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { formatDate } from '../lib/format'
 import { formatTicketId, STATUS_LABELS, type OwnTicket } from '../lib/tickets'
+import { ChevronIcon, InboxIcon } from './Icons'
+import { Skeleton } from './Skeleton'
 
 export function MyTickets({ tickets, loaded, error }: { tickets: OwnTicket[]; loaded: boolean; error: string }) {
   const open = tickets.filter((t) => t.status !== 'resolved').length
@@ -9,17 +11,20 @@ export function MyTickets({ tickets, loaded, error }: { tickets: OwnTicket[]; lo
     <section className="panel">
       <div className="row-between">
         <h2>Your tickets</h2>
-        {tickets.length > 0 && <span className="muted">{open} open</span>}
+        {tickets.length > 0 && <span className="pill">{open} open</span>}
       </div>
       {error && <p className="field-error">Could not load your tickets: {error}</p>}
       {!loaded ? (
-        <p className="empty">Loading…</p>
+        <Skeleton rows={2} />
       ) : tickets.length === 0 ? (
-        <p className="empty">Tickets you submit from this browser appear here, with their status and any replies.</p>
+        <div className="empty">
+          <InboxIcon size={28} />
+          <p>Tickets you submit from this browser appear here, with their status and any replies.</p>
+        </div>
       ) : (
         <ul className="ticket-list">
-          {tickets.map((t) => (
-            <MyTicketRow key={t.id} ticket={t} />
+          {tickets.map((t, i) => (
+            <MyTicketRow key={t.id} ticket={t} index={i} />
           ))}
         </ul>
       )}
@@ -27,17 +32,20 @@ export function MyTickets({ tickets, loaded, error }: { tickets: OwnTicket[]; lo
   )
 }
 
-function MyTicketRow({ ticket: t }: { ticket: OwnTicket }) {
+function MyTicketRow({ ticket: t, index }: { ticket: OwnTicket; index: number }) {
   const [open, setOpen] = useState(false)
   return (
-    <li className={`ticket priority-${t.priority}`}>
+    <li className={`ticket priority-${t.priority}${open ? ' expanded' : ''}`} style={{ '--i': index } as React.CSSProperties}>
       <button className="ticket-summary" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <span className="ticket-id">{formatTicketId(t.id)}</span>
         <span className="ticket-title">
           {t.reason_label}
           {t.notes.length > 0 && <span className="muted"> · {t.notes.length} {t.notes.length === 1 ? 'reply' : 'replies'}</span>}
         </span>
-        <span className={`badge status-${t.status}`}>{STATUS_LABELS[t.status]}</span>
+        <span key={t.status} className={`badge status status-${t.status}`}>{STATUS_LABELS[t.status]}</span>
+        <span className="chevron">
+          <ChevronIcon size={16} />
+        </span>
       </button>
       {open && (
         <div className="ticket-detail">

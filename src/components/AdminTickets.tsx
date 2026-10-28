@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { formatDate } from '../lib/format'
 import { supabase } from '../lib/supabase'
 import { formatTicketId, openTickets, STATUS_LABELS, STATUSES, type Status, type Ticket } from '../lib/tickets'
+import { ChevronIcon, InboxIcon, SearchIcon } from './Icons'
+import { Skeleton } from './Skeleton'
 
 type Filter = 'open' | 'resolved' | 'all'
 
@@ -20,7 +22,7 @@ export function AdminTickets({ tickets, loading, error, reload }: { tickets: Tic
     <section className="panel">
       <div className="row-between">
         <h2>Tickets</h2>
-        <span className="muted">{open.length} open</span>
+        <span className="pill">{open.length} open</span>
       </div>
       <div className="toolbar">
         <div className="segmented">
@@ -30,17 +32,23 @@ export function AdminTickets({ tickets, loading, error, reload }: { tickets: Tic
             </button>
           ))}
         </div>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tickets" />
+        <label className="search">
+          <SearchIcon size={16} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tickets" aria-label="Search tickets" />
+        </label>
       </div>
       {error && <p className="field-error">{error}</p>}
       {loading ? (
-        <p className="empty">Loading tickets…</p>
+        <Skeleton rows={3} />
       ) : shown.length === 0 ? (
-        <p className="empty">{filter === 'open' && !q ? 'No open tickets. New tickets appear here as soon as someone submits one.' : 'No tickets match.'}</p>
+        <div className="empty">
+          <InboxIcon size={28} />
+          <p>{filter === 'open' && !q ? 'No open tickets. New tickets appear here as soon as someone submits one.' : 'No tickets match.'}</p>
+        </div>
       ) : (
         <ul className="ticket-list">
-          {shown.map((t) => (
-            <TicketRow key={t.id} ticket={t} reload={reload} />
+          {shown.map((t, i) => (
+            <TicketRow key={t.id} ticket={t} reload={reload} index={i} />
           ))}
         </ul>
       )}
@@ -48,7 +56,7 @@ export function AdminTickets({ tickets, loading, error, reload }: { tickets: Tic
   )
 }
 
-function TicketRow({ ticket: t, reload }: { ticket: Ticket; reload: () => void }) {
+function TicketRow({ ticket: t, reload, index }: { ticket: Ticket; reload: () => void; index: number }) {
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
@@ -75,7 +83,7 @@ function TicketRow({ ticket: t, reload }: { ticket: Ticket; reload: () => void }
   }
 
   return (
-    <li className={`ticket priority-${t.priority}`}>
+    <li className={`ticket priority-${t.priority}${open ? ' expanded' : ''}`} style={{ '--i': index } as React.CSSProperties}>
       <button className="ticket-summary" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <span className="ticket-id">{formatTicketId(t.id)}</span>
         <span className="ticket-title">
@@ -83,7 +91,10 @@ function TicketRow({ ticket: t, reload }: { ticket: Ticket; reload: () => void }
           <span className="muted"> · {t.name}</span>
         </span>
         <span className={`badge priority-badge-${t.priority}`}>{t.priority}</span>
-        <span className={`badge status-${t.status}`}>{STATUS_LABELS[t.status]}</span>
+        <span key={t.status} className={`badge status status-${t.status}`}>{STATUS_LABELS[t.status]}</span>
+        <span className="chevron">
+          <ChevronIcon size={16} />
+        </span>
       </button>
       {open && (
         <div className="ticket-detail">

@@ -3,8 +3,10 @@ import { AdminLogin } from './components/AdminLogin'
 import { AdminReasons } from './components/AdminReasons'
 import { AdminTickets } from './components/AdminTickets'
 import { CheckStatus } from './components/CheckStatus'
+import { LogoIcon } from './components/Icons'
 import { MyTickets } from './components/MyTickets'
 import { SubmitTicket } from './components/SubmitTicket'
+import { ThemeToggle } from './components/ThemeToggle'
 import { useAdminSession, useAdminTickets, useReasons } from './hooks/useDesk'
 import { useMyTickets } from './hooks/useMyTickets'
 import { supabase } from './lib/supabase'
@@ -28,25 +30,36 @@ export default function App() {
     <div className="app">
       <header className="header">
         <div className="header-inner">
-          <h1>IT help desk</h1>
-          {session && (
-            <div className="admin-bar">
-              {isAdmin && <span className="badge admin">Admin</span>}
-              <button className="link-btn light" onClick={() => supabase!.auth.signOut()}>
-                Sign out
-              </button>
+          <div className="brand">
+            <span className="brand-mark">
+              <LogoIcon size={20} />
+            </span>
+            <div>
+              <h1>IT help desk</h1>
+              <p className="tagline">Report a problem and follow it until it is fixed</p>
             </div>
-          )}
+          </div>
+          <div className="header-actions">
+            {session && (
+              <>
+                {isAdmin && <span className="badge admin">Admin</span>}
+                <button className="btn ghost small" onClick={() => supabase!.auth.signOut()}>
+                  Sign out
+                </button>
+              </>
+            )}
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
       <main className="main">
-        {session && !isAdmin && <p className="panel muted">This account is not a help desk admin.</p>}
+        {session && !isAdmin && <p className="notice">This account is not a help desk admin.</p>}
         {isAdmin ? (
-          <>
+          <div className="stack">
             <nav className="tabs">
               <button className={tab === 'tickets' ? 'active' : ''} onClick={() => setTab('tickets')}>
-                Open tickets ({openTickets(adminTickets.tickets).length})
+                Open tickets <span className="count">{openTickets(adminTickets.tickets).length}</span>
               </button>
               <button className={tab === 'reasons' ? 'active' : ''} onClick={() => setTab('reasons')}>
                 Ticket reasons
@@ -54,14 +67,18 @@ export default function App() {
             </nav>
             {tab === 'tickets' && <AdminTickets {...adminTickets} />}
             {tab === 'reasons' && <AdminReasons reasons={reasons} reload={reloadReasons} />}
-          </>
+          </div>
         ) : (
-          <>
-            {reasonsError && <p className="panel field-error">Could not load ticket reasons: {reasonsError}</p>}
-            <SubmitTicket reasons={reasons} onSubmitted={mine.reload} />
-            {mine.available && <MyTickets {...mine} />}
-            <CheckStatus />
-          </>
+          <div className="layout">
+            <div className="stack">
+              {reasonsError && <p className="panel field-error">Could not load ticket reasons: {reasonsError}</p>}
+              <SubmitTicket reasons={reasons} onSubmitted={mine.reload} />
+            </div>
+            <div className="stack">
+              {mine.available && <MyTickets {...mine} />}
+              <CheckStatus />
+            </div>
+          </div>
         )}
       </main>
 
