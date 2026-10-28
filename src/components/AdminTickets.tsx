@@ -59,6 +59,14 @@ function TicketRow({ ticket: t, reload }: { ticket: Ticket; reload: () => void }
     reload()
   }
 
+  async function deleteTicket() {
+    if (!confirm(`Delete ${formatTicketId(t.id)} and its notes? This cannot be undone.`)) return
+    // RLS turns a refused delete into "0 rows", so ask for the deleted row back to tell the difference.
+    const { data, error } = await supabase!.from('ticket_tickets').delete().eq('id', t.id).select('id')
+    setError(error?.message ?? (data?.length ? '' : 'The ticket was not deleted. Check that you are signed in as an admin.'))
+    reload()
+  }
+
   async function addNote() {
     const { error } = await supabase!.from('ticket_notes').insert({ ticket_id: t.id, body: note.trim() })
     setError(error?.message ?? '')
@@ -109,6 +117,9 @@ function TicketRow({ ticket: t, reload }: { ticket: Ticket; reload: () => void }
                 ))}
               </select>
             </label>
+            <button type="button" className="link-btn danger push-right" onClick={deleteTicket}>
+              Delete ticket
+            </button>
           </div>
           <form
             className="inline-form"

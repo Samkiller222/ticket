@@ -67,6 +67,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px s
 .reason-form input { flex: 1 1 200px; }
 .inline { display: flex; gap: 8px; align-items: center; font-size: 13px; }
 .inline select { width: auto; }
+.push-right { margin-left: auto; }
 
 .row-between { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .row-end { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
