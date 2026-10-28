@@ -9,10 +9,9 @@ language sql immutable set search_path = ''
 as $$ select encode(extensions.digest(p_key, 'sha256'), 'hex') $$;
 revoke execute on function public.ticket_key_hash(text) from public, anon, authenticated;
 
--- Replaces the five-argument version with one that also takes the browser key.
-drop function public.ticket_submit(text, text, uuid, text, text);
-
-create function public.ticket_submit(p_name text, p_email text, p_reason_id uuid, p_priority text, p_description text, p_owner_key text default null)
+-- A six-argument overload that also takes the browser key. The five-argument version stays for
+-- callers without a key; p_owner_key has no default, so the two never clash.
+create function public.ticket_submit(p_name text, p_email text, p_reason_id uuid, p_priority text, p_description text, p_owner_key text)
 returns bigint
 language plpgsql security definer set search_path = ''
 as $$
@@ -25,11 +24,11 @@ begin
   if coalesce(trim(p_name), '') = '' then raise exception 'Enter your name.'; end if;
   if length(trim(coalesce(p_description, ''))) < 10 then raise exception 'Describe the problem in at least 10 characters.'; end if;
   -- Keys are random UUIDs; refuse short ones so nobody can claim an easily guessed key.
-  if p_owner_key is not null and length(p_owner_key) < 32 then raise exception 'Invalid browser key.'; end if;
+  if length(coalesce(p_owner_key, '')) < 32 then raise exception 'Invalid browser key.'; end if;
 
   insert into public.ticket_tickets (name, email, reason_id, reason_label, category, priority, description, owner_key_hash)
   values (trim(p_name), nullif(trim(p_email), ''), r.id, r.label, r.category, coalesce(p_priority, 'normal'), trim(p_description),
-          case when p_owner_key is null then null else public.ticket_key_hash(p_owner_key) end)
+          public.ticket_key_hash(p_owner_key))
   returning id into new_id;
   return new_id;
 end $$;
