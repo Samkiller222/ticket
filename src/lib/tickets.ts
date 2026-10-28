@@ -9,65 +9,47 @@ export interface Reason {
 }
 
 export interface Note {
-  at: string
-  text: string
+  id?: string
+  body: string
+  created_at: string
+  /** True when the person who raised the ticket wrote it; false for the help desk. */
+  from_submitter?: boolean
 }
 
-export interface Ticket {
-  id: string
+export interface Attachment {
+  id?: string
   name: string
-  email: string
-  reasonId: string
-  /** Copied at submit time so the ticket still reads right if the reason is renamed or removed. */
-  reasonLabel: string
+  path?: string
+  size?: number | null
+}
+
+/** A ticket as admins see it (row from ticket_tickets plus its notes). */
+export interface Ticket {
+  id: number
+  name: string
+  email: string | null
+  reason_id: string | null
+  reason_label: string
   category: string
   priority: Priority
   description: string
   status: Status
-  createdAt: string
-  updatedAt: string
+  created_at: string
+  updated_at: string
+  resolved_at: string | null
   notes: Note[]
+  attachments: Attachment[]
 }
 
-export interface Desk {
-  reasons: Reason[]
-  tickets: Ticket[]
-  nextNumber: number
-}
+/** What anyone can see through ticket_lookup: no name, email or description. */
+export type PublicTicket = Pick<Ticket, 'id' | 'status' | 'priority' | 'reason_label' | 'category' | 'created_at' | 'updated_at' | 'notes'>
 
-export const PRIORITIES: Priority[] = ['low', 'normal', 'high', 'urgent']
-export const STATUSES: Status[] = ['open', 'in_progress', 'resolved']
-export const STATUS_LABELS: Record<Status, string> = {
-  open: 'Open',
-  in_progress: 'In progress',
-  resolved: 'Resolved',
-}
+/** What ticket_mine_many returns: the visitor's own tickets, details included. */
+export type OwnTicket = Omit<Ticket, 'reason_id'>
 
-const SEED: [string, string[]][] = [
-  ['Accounts and access', ['Forgot password', 'Account locked out', 'Need access to a shared folder', 'Two-factor code not arriving', 'New starter account setup']],
-  ['Hardware', ['Computer will not turn on', 'Computer is running slowly', 'Monitor not displaying', 'Keyboard or mouse not working', 'Laptop battery not charging']],
-  ['Software', ['Application keeps crashing', 'Need software installed', 'Software licence expired', 'Operating system update failed', 'Pop-ups or suspected virus']],
-  ['Network', ['No internet connection', 'Wi-Fi keeps dropping', 'VPN will not connect', 'Cannot reach an internal website']],
-  ['Email', ['Cannot send or receive email', 'Mailbox is full', 'Suspicious or phishing email', 'Calendar not syncing']],
-  ['Printing', ['Printer offline', 'Paper jam', 'Print jobs stuck in queue', 'Scanner not working']],
-  ['Phones and devices', ['Phone not syncing work email', 'Lost or stolen device', 'Headset or webcam not working']],
-  ['Other', ['Something else']],
-]
-
-export function seedDesk(): Desk {
-  const reasons: Reason[] = []
-  for (const [category, labels] of SEED) {
-    for (const label of labels) reasons.push({ id: slug(category, label), category, label, active: true })
-  }
-  return { reasons, tickets: [], nextNumber: 1001 }
-}
-
-function slug(...parts: string[]): string {
-  return parts.join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-}
-
-export function ticketId(n: number): string {
-  return `TCK-${n}`
+/** True when the latest note is from the submitter, i.e. the help desk owes a reply. */
+export function awaitingReply(t: Pick<Ticket, 'notes' | 'status'>): boolean {
+  return t.status !== 'resolved' && t.notes.length > 0 && t.notes[t.notes.length - 1].from_submitter === true
 }
 
 export interface NewTicket {
@@ -78,64 +60,36 @@ export interface NewTicket {
   description: string
 }
 
+export const PRIORITIES: Priority[] = ['low', 'normal', 'high', 'urgent']
+export const STATUSES: Status[] = ['open', 'in_progress', 'resolved']
+export const STATUS_LABELS: Record<Status, string> = {
+  open: 'Open',
+  in_progress: 'In progress',
+  resolved: 'Resolved',
+}
 export const MIN_DESCRIPTION = 10
 
-/** Problems with a new ticket, keyed by field. Empty when the ticket can be submitted. */
-export function validateTicket(desk: Desk, input: NewTicket): Partial<Record<keyof NewTicket, string>> {
+export function formatTicketId(id: number): string {
+  return `TCK-${id}`
+}
+
+/** Accepts "TCK-1001", "tck 1001" or "1001". */
+export function parseTicketId(input: string): number | null {
+  const m = input.trim().match(/^(?:tck[\s-]*)?(\d+)$/i)
+  return m ? Number(m[1]) : null
+}
+
+/** Problems with a new ticket, keyed by field. Empty when it can be submitted. The database checks the same rules. */
+export function validateTicket(reasons: Reason[], input: NewTicket): Partial<Record<keyof NewTicket, string>> {
   const errors: Partial<Record<keyof NewTicket, string>> = {}
   if (!input.name.trim()) errors.name = 'Enter your name.'
   const email = input.email.trim()
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Enter a valid email address, or leave it blank.'
-  if (!desk.reasons.some((r) => r.id === input.reasonId && r.active)) errors.reasonId = 'Pick what the problem is.'
+  if (!reasons.some((r) => r.id === input.reasonId && r.active)) errors.reasonId = 'Pick what the problem is.'
   const description = input.description.trim()
   if (!description) errors.description = 'Describe the problem.'
   else if (description.length < MIN_DESCRIPTION) errors.description = `Add a bit more detail (at least ${MIN_DESCRIPTION} characters).`
   return errors
-}
-
-export function addTicket(desk: Desk, input: NewTicket, now = new Date()): { desk: Desk; ticket: Ticket } {
-  const errors = Object.values(validateTicket(desk, input))
-  if (errors.length) throw new Error(errors[0])
-  const reason = desk.reasons.find((r) => r.id === input.reasonId)!
-  const at = now.toISOString()
-  const ticket: Ticket = {
-    id: ticketId(desk.nextNumber),
-    name: input.name.trim(),
-    email: input.email.trim(),
-    reasonId: reason.id,
-    reasonLabel: reason.label,
-    category: reason.category,
-    priority: input.priority,
-    description: input.description.trim(),
-    status: 'open',
-    createdAt: at,
-    updatedAt: at,
-    notes: [],
-  }
-  return { desk: { ...desk, tickets: [ticket, ...desk.tickets], nextNumber: desk.nextNumber + 1 }, ticket }
-}
-
-function updateTicket(desk: Desk, id: string, change: (t: Ticket) => Partial<Ticket>, now: Date): Desk {
-  return {
-    ...desk,
-    tickets: desk.tickets.map((t) => (t.id === id ? { ...t, ...change(t), updatedAt: now.toISOString() } : t)),
-  }
-}
-
-export function setStatus(desk: Desk, id: string, status: Status, now = new Date()): Desk {
-  return updateTicket(desk, id, () => ({ status }), now)
-}
-
-export function addNote(desk: Desk, id: string, text: string, now = new Date()): Desk {
-  const trimmed = text.trim()
-  if (!trimmed) return desk
-  return updateTicket(desk, id, (t) => ({ notes: [...t.notes, { at: now.toISOString(), text: trimmed }] }), now)
-}
-
-export function findTicket(desk: Desk, id: string): Ticket | undefined {
-  const wanted = id.trim().toUpperCase()
-  const normalised = /^\d+$/.test(wanted) ? ticketId(Number(wanted)) : wanted
-  return desk.tickets.find((t) => t.id === normalised)
 }
 
 const PRIORITY_RANK: Record<Priority, number> = { urgent: 0, high: 1, normal: 2, low: 3 }
@@ -144,31 +98,88 @@ const PRIORITY_RANK: Record<Priority, number> = { urgent: 0, high: 1, normal: 2,
 export function openTickets(tickets: Ticket[]): Ticket[] {
   return tickets
     .filter((t) => t.status !== 'resolved')
-    .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.createdAt.localeCompare(b.createdAt))
-}
-
-export function addReason(desk: Desk, category: string, label: string): Desk {
-  const c = category.trim()
-  const l = label.trim()
-  if (!c || !l) throw new Error('A reason needs a category and a label.')
-  const exists = desk.reasons.some((r) => r.category.toLowerCase() === c.toLowerCase() && r.label.toLowerCase() === l.toLowerCase())
-  if (exists) throw new Error('That reason already exists.')
-  let id = slug(c, l)
-  while (desk.reasons.some((r) => r.id === id)) id += '-x'
-  return { ...desk, reasons: [...desk.reasons, { id, category: c, label: l, active: true }] }
-}
-
-export function toggleReason(desk: Desk, id: string): Desk {
-  return { ...desk, reasons: desk.reasons.map((r) => (r.id === id ? { ...r, active: !r.active } : r)) }
-}
-
-/** Removes a reason outright. Tickets keep their copied label, so nothing breaks. */
-export function deleteReason(desk: Desk, id: string): Desk {
-  return { ...desk, reasons: desk.reasons.filter((r) => r.id !== id) }
+    .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.created_at.localeCompare(b.created_at))
 }
 
 export function groupByCategory(reasons: Reason[]): [string, Reason[]][] {
   const groups = new Map<string, Reason[]>()
   for (const r of reasons) groups.set(r.category, [...(groups.get(r.category) ?? []), r])
   return [...groups.entries()]
+}
+
+/** Checks a new reason against the existing ones before it goes to the database. */
+export function reasonError(reasons: Reason[], category: string, label: string): string {
+  const c = category.trim().toLowerCase()
+  const l = label.trim().toLowerCase()
+  if (!c || !l) return 'A reason needs a category and a label.'
+  if (reasons.some((r) => r.category.toLowerCase() === c && r.label.toLowerCase() === l)) return 'That reason already exists.'
+  return ''
+}
+
+/** New and untouched, or the submitter has replied since: the tickets waiting on the help desk. */
+export function needsAttention(t: Pick<Ticket, 'notes' | 'status'>): boolean {
+  return (t.status === 'open' && !t.notes.some((n) => !n.from_submitter)) || awaitingReply(t)
+}
+
+export type SortOrder = 'priority' | 'newest' | 'oldest' | 'updated'
+export const SORT_LABELS: Record<SortOrder, string> = {
+  priority: 'Most urgent',
+  newest: 'Newest',
+  oldest: 'Oldest',
+  updated: 'Recently updated',
+}
+
+export function sortTickets<T extends Pick<Ticket, 'priority' | 'created_at' | 'updated_at'>>(tickets: T[], order: SortOrder): T[] {
+  const list = [...tickets]
+  if (order === 'priority') return list.sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.created_at.localeCompare(b.created_at))
+  if (order === 'oldest') return list.sort((a, b) => a.created_at.localeCompare(b.created_at))
+  if (order === 'updated') return list.sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+  return list.sort((a, b) => b.created_at.localeCompare(a.created_at))
+}
+
+export interface DeskStats {
+  open: number
+  needsAttention: number
+  openByPriority: Record<Priority, number>
+  openedThisWeek: number
+  resolvedThisWeek: number
+  /** Average time from submitted to resolved, in ms, over tickets resolved in the last 30 days. Null when none. */
+  avgResolveMs: number | null
+  /** Most common reasons over the last 7 days, most frequent first (top 5). */
+  topReasons: { label: string; count: number }[]
+}
+
+export function deskStats(tickets: Ticket[], now = new Date()): DeskStats {
+  const weekAgo = now.getTime() - 7 * 86_400_000
+  const monthAgo = now.getTime() - 30 * 86_400_000
+  const open = tickets.filter((t) => t.status !== 'resolved')
+  const openByPriority: Record<Priority, number> = { urgent: 0, high: 0, normal: 0, low: 0 }
+  for (const t of open) openByPriority[t.priority]++
+
+  // Older tickets resolved before resolved_at existed fall back to their last update.
+  const resolvedAt = (t: Ticket) => new Date(t.resolved_at ?? t.updated_at).getTime()
+  const resolved = tickets.filter((t) => t.status === 'resolved')
+  const recent = resolved.filter((t) => resolvedAt(t) >= monthAgo)
+  const avgResolveMs = recent.length
+    ? recent.reduce((sum, t) => sum + (resolvedAt(t) - new Date(t.created_at).getTime()), 0) / recent.length
+    : null
+
+  const counts = new Map<string, number>()
+  for (const t of tickets) {
+    if (new Date(t.created_at).getTime() >= weekAgo) counts.set(t.reason_label, (counts.get(t.reason_label) ?? 0) + 1)
+  }
+  const topReasons = [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, 5)
+
+  return {
+    open: open.length,
+    needsAttention: tickets.filter(needsAttention).length,
+    openByPriority,
+    openedThisWeek: tickets.filter((t) => new Date(t.created_at).getTime() >= weekAgo).length,
+    resolvedThisWeek: resolved.filter((t) => resolvedAt(t) >= weekAgo).length,
+    avgResolveMs,
+    topReasons,
+  }
 }
