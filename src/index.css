@@ -324,7 +324,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 .chevron { display: grid; color: var(--ink-faint); transition: transform 0.3s var(--ease), color 0.2s ease; }
 .ticket.expanded .chevron { transform: rotate(180deg); color: var(--accent); }
 
-.ticket-detail { padding: 0 14px 14px; animation: reveal 0.35s var(--ease) both; }
+.ticket-detail { padding: 0 14px 14px; }
+
+/* Smooth open/close for ticket details (Collapse.tsx): the row animates between 0fr and 1fr. */
+.collapse { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s var(--ease); }
+.collapse.open { grid-template-rows: 1fr; }
+.collapse-inner { min-height: 0; overflow: hidden; opacity: 0; transform: translateY(-4px); transition: opacity 0.25s ease, transform 0.4s var(--ease); }
+.collapse.open .collapse-inner { opacity: 1; transform: none; transition: opacity 0.35s 0.05s ease, transform 0.4s var(--ease); }
 .ticket-detail > p:first-child { margin-top: 0; }
 .description { white-space: pre-wrap; background: var(--subtle); border: 1px solid var(--line); padding: 12px 14px; border-radius: var(--radius-sm); margin: 10px 0; }
 @media (max-width: 600px) { .ticket-summary .priority-badge-low, .ticket-summary .priority-badge-normal { display: none; } }

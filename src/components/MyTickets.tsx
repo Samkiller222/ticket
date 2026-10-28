@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatDate } from '../lib/format'
 import { formatTicketId, STATUS_LABELS, type OwnTicket } from '../lib/tickets'
+import { Collapse } from './Collapse'
 import { ChevronIcon, InboxIcon } from './Icons'
 import { Skeleton } from './Skeleton'
 
@@ -47,7 +48,7 @@ function MyTicketRow({ ticket: t, index }: { ticket: OwnTicket; index: number })
           <ChevronIcon size={16} />
         </span>
       </button>
-      {open && (
+      <Collapse open={open}>
         <div className="ticket-detail">
           <p className="muted">
             {t.category} · {t.priority} priority · submitted {formatDate(t.created_at)} · updated {formatDate(t.updated_at)}
@@ -63,7 +64,7 @@ function MyTicketRow({ ticket: t, index }: { ticket: OwnTicket; index: number })
             </ul>
           )}
         </div>
-      )}
+      </Collapse>
     </li>
   )
 }

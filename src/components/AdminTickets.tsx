@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { formatDate } from '../lib/format'
 import { supabase } from '../lib/supabase'
 import { formatTicketId, openTickets, STATUS_LABELS, STATUSES, type Status, type Ticket } from '../lib/tickets'
+import { Collapse } from './Collapse'
 import { ChevronIcon, InboxIcon, SearchIcon } from './Icons'
 import { Segmented } from './Segmented'
 import { Skeleton } from './Skeleton'
@@ -101,7 +102,7 @@ function TicketRow({ ticket: t, reload, index }: { ticket: Ticket; reload: () =>
           <ChevronIcon size={16} />
         </span>
       </button>
-      {open && (
+      <Collapse open={open}>
         <div className="ticket-detail">
           <p className="muted">
             {t.category} · submitted {formatDate(t.created_at)}
@@ -151,7 +152,7 @@ function TicketRow({ ticket: t, reload, index }: { ticket: Ticket; reload: () =>
           </form>
           {error && <p className="field-error">{error}</p>}
         </div>
-      )}
+      </Collapse>
     </li>
   )
 }
